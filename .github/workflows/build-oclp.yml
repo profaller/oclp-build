@@ -26,6 +26,52 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements.txt
 
+      - name: Download official OCLP package
+        run: |
+          curl -fL \
+            "https://github.com/dortania/OpenCore-Legacy-Patcher/releases/download/2.5.1/OpenCore-Patcher.pkg" \
+            -o /tmp/OpenCore-Patcher.pkg
+
+      - name: Install official OCLP package
+        run: |
+          sudo installer \
+            -pkg /tmp/OpenCore-Patcher.pkg \
+            -target /
+
+      - name: Find installed OCLP resources
+        run: |
+          echo "=== Installed application ==="
+          find "/Library/Application Support" \
+            -name "OpenCore-Patcher.app" \
+            -print 2>/dev/null || true
+
+          echo "=== Resource DMGs ==="
+          find "/Library/Application Support" \
+            \( -name "payloads.dmg" -o -name "Universal-Binaries.dmg" \) \
+            -print 2>/dev/null || true
+
+      - name: Copy binary resources into source tree
+        run: |
+          PAYLOADS="$(find "/Library/Application Support" \
+            -name payloads.dmg \
+            -print -quit)"
+
+          UNIVERSAL="$(find "/Library/Application Support" \
+            -name Universal-Binaries.dmg \
+            -print -quit)"
+
+          echo "payloads.dmg: $PAYLOADS"
+          echo "Universal-Binaries.dmg: $UNIVERSAL"
+
+          test -n "$PAYLOADS"
+          test -n "$UNIVERSAL"
+
+          cp "$PAYLOADS" OCLP/payloads.dmg
+          cp "$UNIVERSAL" OCLP/Universal-Binaries.dmg
+
+          ls -lh OCLP/payloads.dmg
+          ls -lh OCLP/Universal-Binaries.dmg
+
       - name: Build OpenCore for MacBookPro11,5
         working-directory: OCLP
         run: |
@@ -34,24 +80,25 @@ jobs:
             --model MacBookPro11,5 \
             --verbose
 
-      - name: Show build result
+      - name: Show resulting build tree
         working-directory: OCLP
         run: |
           echo "=== Build-Folder ==="
-          find Build-Folder -maxdepth 4 -type f | sort
-
-          echo
-          echo "=== EFI directory ==="
-          find Build-Folder/OpenCore-Build/EFI -maxdepth 4 -type f | sort
+          find Build-Folder -maxdepth 5 -print || true
 
       - name: Verify EFI
         working-directory: OCLP
         run: |
-          test -f Build-Folder/OpenCore-Build/EFI/OC/OpenCore.efi
-          test -f Build-Folder/OpenCore-Build/EFI/OC/config.plist
-          test -f Build-Folder/OpenCore-Build/EFI/BOOT/BOOTx64.efi
+          echo "Checking EFI..."
 
-          echo "EFI looks good"
+          test -f Build-Folder/OpenCore-Build/EFI/OC/OpenCore.efi
+          echo "OpenCore.efi OK"
+
+          test -f Build-Folder/OpenCore-Build/EFI/OC/config.plist
+          echo "config.plist OK"
+
+          test -f Build-Folder/OpenCore-Build/EFI/BOOT/BOOTx64.efi
+          echo "BOOTx64.efi OK"
 
       - name: Upload EFI
         uses: actions/upload-artifact@v4
