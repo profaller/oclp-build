@@ -135,6 +135,8 @@ jobs:
           test -f Build-Folder/OpenCore-Build/EFI/BOOT/BOOTx64.efi
           echo "BOOTx64.efi OK"
 
+          echo "EFI IS READY"
+
       - name: Upload EFI
         uses: actions/upload-artifact@v4
         with:
