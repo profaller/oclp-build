@@ -52,26 +52,43 @@ jobs:
 
       - name: Copy binary resources into source tree
         run: |
-          PAYLOADS="$(find "/Library/Application Support" \
-            -name payloads.dmg \
+          APP="/Library/Application Support/Dortania/OpenCore-Patcher.app"
+
+          echo "=== OCLP app contents ==="
+          find "$APP/Contents" -maxdepth 4 \
+            \( -name "payloads.dmg" -o -name "Universal-Binaries.dmg" \) \
+            -print
+
+          PAYLOADS="$(find "$APP/Contents" \
+            -type f \
+            -name "payloads.dmg" \
             -print -quit)"
 
-          UNIVERSAL="$(find "/Library/Application Support" \
-            -name Universal-Binaries.dmg \
+          UNIVERSAL="$(find "$APP/Contents" \
+            -type f \
+            -name "Universal-Binaries.dmg" \
             -print -quit)"
 
           echo "payloads.dmg: $PAYLOADS"
           echo "Universal-Binaries.dmg: $UNIVERSAL"
 
-          test -n "$PAYLOADS"
-          test -n "$UNIVERSAL"
+          if [ -z "$PAYLOADS" ]; then
+            echo "ERROR: payloads.dmg not found"
+            exit 1
+          fi
+
+          if [ -z "$UNIVERSAL" ]; then
+            echo "ERROR: Universal-Binaries.dmg not found"
+            exit 1
+          fi
 
           cp "$PAYLOADS" OCLP/payloads.dmg
           cp "$UNIVERSAL" OCLP/Universal-Binaries.dmg
 
+          echo "=== Copied resources ==="
           ls -lh OCLP/payloads.dmg
           ls -lh OCLP/Universal-Binaries.dmg
-
+          
       - name: Build OpenCore for MacBookPro11,5
         working-directory: OCLP
         run: |
