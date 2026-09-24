@@ -97,6 +97,24 @@ jobs:
             --model MacBookPro11,5 \
             --verbose
 
+      - name: Create bootable EFI layout
+        working-directory: OCLP
+        run: |
+          echo "=== Checking bootstrap ==="
+
+          test -f Build-Folder/OpenCore-Build/System/Library/CoreServices/boot.efi
+          echo "Bootstrap boot.efi OK"
+
+          mkdir -p Build-Folder/OpenCore-Build/EFI/BOOT
+
+          cp \
+            Build-Folder/OpenCore-Build/System/Library/CoreServices/boot.efi \
+            Build-Folder/OpenCore-Build/EFI/BOOT/BOOTx64.efi
+
+          echo "Created EFI/BOOT/BOOTx64.efi"
+
+          ls -lh Build-Folder/OpenCore-Build/EFI/BOOT/BOOTx64.efi
+
       - name: Show resulting build tree
         working-directory: OCLP
         run: |
