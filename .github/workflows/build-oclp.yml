@@ -8,60 +8,54 @@ jobs:
     runs-on: macos-15-intel
 
     steps:
-      - name: Download OpenCore Legacy Patcher
-        run: |
-          curl -L \
-            "https://github.com/dortania/OpenCore-Legacy-Patcher/releases/download/2.5.1/OpenCore-Patcher.pkg" \
-            -o /tmp/OpenCore-Patcher.pkg
+      - name: Checkout OCLP 2.5.1
+        uses: actions/checkout@v4
+        with:
+          repository: dortania/OpenCore-Legacy-Patcher
+          ref: "2.5.1"
+          path: OCLP
 
-      - name: Install OCLP
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        working-directory: OCLP
         run: |
-          sudo installer \
-            -pkg /tmp/OpenCore-Patcher.pkg \
-            -target /
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
 
       - name: Build OpenCore for MacBookPro11,5
+        working-directory: OCLP
         run: |
-          OCLP="/Library/Application Support/Dortania/OpenCore-Patcher.app/Contents/MacOS/OpenCore-Patcher"
-
-          "$OCLP" \
+          python3 OpenCore-Patcher-GUI.command \
             --build \
-            --model MacBookPro11,5
+            --model MacBookPro11,5 \
+            --verbose
 
-      - name: Collect EFI
+      - name: Show build result
+        working-directory: OCLP
         run: |
-          APP="/Library/Application Support/Dortania/OpenCore-Patcher.app"
+          echo "=== Build-Folder ==="
+          find Build-Folder -maxdepth 4 -type f | sort
 
-          EFI_FILE="$(find \
-            "$APP" \
-            /private/var/folders \
-            "$HOME" \
-            -type f \
-            -path '*/Build-Folder/*/EFI/OC/OpenCore.efi' \
-            2>/dev/null | head -n 1)"
+          echo
+          echo "=== EFI directory ==="
+          find Build-Folder/OpenCore-Build/EFI -maxdepth 4 -type f | sort
 
-          if [ -z "$EFI_FILE" ]; then
-            echo "Built EFI not found"
-            echo "Available OpenCore.efi files:"
-            find "$APP" /private/var/folders "$HOME" \
-              -type f \
-              -name OpenCore.efi \
-              2>/dev/null || true
-            exit 1
-          fi
+      - name: Verify EFI
+        working-directory: OCLP
+        run: |
+          test -f Build-Folder/OpenCore-Build/EFI/OC/OpenCore.efi
+          test -f Build-Folder/OpenCore-Build/EFI/OC/config.plist
+          test -f Build-Folder/OpenCore-Build/EFI/BOOT/BOOTx64.efi
 
-          echo "Found: $EFI_FILE"
-
-          EFI_DIR="$(dirname "$(dirname "$EFI_FILE")")"
-
-          mkdir -p artifact
-          cp -R "$EFI_DIR" artifact/EFI
-
-          echo "Result:"
-          find artifact/EFI -maxdepth 3 -type f
+          echo "EFI looks good"
 
       - name: Upload EFI
         uses: actions/upload-artifact@v4
         with:
           name: OCLP-MacBookPro11-5-EFI
-          path: artifact/EFI
+          path: OCLP/Build-Folder/OpenCore-Build/EFI
+          if-no-files-found: error
