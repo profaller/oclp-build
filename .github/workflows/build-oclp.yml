@@ -1,0 +1,67 @@
+name: Build OCLP EFI for MacBookPro11,5
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Download OpenCore Legacy Patcher
+        run: |
+          curl -L \
+            "https://github.com/dortania/OpenCore-Legacy-Patcher/releases/download/2.5.1/OpenCore-Patcher.pkg" \
+            -o /tmp/OpenCore-Patcher.pkg
+
+      - name: Install OCLP
+        run: |
+          sudo installer \
+            -pkg /tmp/OpenCore-Patcher.pkg \
+            -target /
+
+      - name: Build OpenCore for MacBookPro11,5
+        run: |
+          OCLP="/Library/Application Support/Dortania/OpenCore-Patcher.app/Contents/MacOS/OpenCore-Patcher"
+
+          "$OCLP" \
+            --build \
+            --model MacBookPro11,5
+
+      - name: Collect EFI
+        run: |
+          APP="/Library/Application Support/Dortania/OpenCore-Patcher.app"
+
+          EFI_FILE="$(find \
+            "$APP" \
+            /private/var/folders \
+            "$HOME" \
+            -type f \
+            -path '*/Build-Folder/*/EFI/OC/OpenCore.efi' \
+            2>/dev/null | head -n 1)"
+
+          if [ -z "$EFI_FILE" ]; then
+            echo "Built EFI not found"
+            echo "Available OpenCore.efi files:"
+            find "$APP" /private/var/folders "$HOME" \
+              -type f \
+              -name OpenCore.efi \
+              2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Found: $EFI_FILE"
+
+          EFI_DIR="$(dirname "$(dirname "$EFI_FILE")")"
+
+          mkdir -p artifact
+          cp -R "$EFI_DIR" artifact/EFI
+
+          echo "Result:"
+          find artifact/EFI -maxdepth 3 -type f
+
+      - name: Upload EFI
+        uses: actions/upload-artifact@v4
+        with:
+          name: OCLP-MacBookPro11-5-EFI
+          path: artifact/EFI
